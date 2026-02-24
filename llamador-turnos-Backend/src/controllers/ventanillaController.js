@@ -2,6 +2,7 @@ import Ventanilla from '../models/Ventanilla.js';
 import Cola from '../models/Cola.js';
 
 class VentanillaController {
+
   // GET /api/ventanillas - Obtener todas
   async obtenerTodas(req, res) {
     try {
@@ -11,7 +12,7 @@ class VentanillaController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
-  
+
   // GET /api/ventanillas/activas
   async obtenerActivas(req, res) {
     try {
@@ -33,33 +34,32 @@ class VentanillaController {
     }
   }
 
-  // POST /api/ventanillas/:id/llamar-siguiente (TU FUNCIÓN CLAVE)
+  // POST /api/ventanillas/:id/llamar-siguiente
   async llamarSiguiente(req, res) {
     try {
       const ventanilla = await Ventanilla.findById(req.params.id);
       if (!ventanilla) return res.status(404).json({ success: false, message: 'No encontrada' });
-      
+
       const cola = await Cola.obtenerColaHoy();
       const siguiente = cola.obtenerSiguiente();
-      
+
       if (!siguiente) return res.status(400).json({ success: false, message: 'No hay más turnos' });
-      
+
       const { numero, esUltimo } = cola.asignarTurno(ventanilla.numero);
       await cola.save();
-      
-      // Actualizamos la ventanilla con el turno
+
       ventanilla.turnoActual = numero;
       ventanilla.ultimosLlamados.unshift(numero);
       ventanilla.ultimosLlamados = ventanilla.ultimosLlamados.slice(0, 5);
       await ventanilla.save();
-      
+
       req.io.emit('turno:llamado', {
         ventanilla: ventanilla.numero,
         color: ventanilla.color,
         turno: numero,
         ultimosLlamados: ventanilla.ultimosLlamados
       });
-      
+
       res.json({ success: true, data: ventanilla });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
@@ -80,7 +80,7 @@ class VentanillaController {
     }
   }
 
-  // PATCH /api/ventanillas/:id/anuncio (CORRECCIÓN DE ANUNCIOS)
+  // PATCH /api/ventanillas/:id/anuncio
   async actualizarAnuncio(req, res) {
     try {
       const { anuncio } = req.body;
@@ -89,15 +89,14 @@ class VentanillaController {
         { anuncio: anuncio || '' },
         { new: true }
       );
-      
+
       if (!ventanilla) return res.status(404).json({ success: false, message: 'No encontrada' });
 
-      // Avisamos a la pantalla del Gandulfo
       req.io.emit('anuncio:actualizado', {
         ventanilla: ventanilla.numero,
         anuncio: ventanilla.anuncio
       });
-      
+
       res.json({ success: true, data: ventanilla });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
@@ -107,11 +106,11 @@ class VentanillaController {
   // DELETE /api/ventanillas/:id/limpiar
   async limpiar(req, res) {
     try {
-      const ventanilla = await Ventanilla.findByIdAndUpdate(req.params.id, {
-        turnoActual: '000',
-        ultimosLlamados: [],
-        anuncio: ''
-      }, { new: true });
+      const ventanilla = await Ventanilla.findByIdAndUpdate(
+        req.params.id,
+        { turnoActual: '000', ultimosLlamados: [], anuncio: '' },
+        { new: true }
+      );
       res.json({ success: true, data: ventanilla });
     } catch (error) {
       res.status(500).json({ success: false, message: error.message });
@@ -141,6 +140,26 @@ class VentanillaController {
     }
   }
 
+  // POST /api/ventanillas/:id/reiniciar-contador
+  async reiniciarContador(req, res) {
+    try {
+      const ventanilla = await Ventanilla.findByIdAndUpdate(
+        req.params.id,
+        { turnoActual: '000', ultimosLlamados: [] },
+        { new: true }
+      );
+      if (!ventanilla) return res.status(404).json({ success: false, message: 'No encontrada' });
+      req.io.emit('turno:llamado', {
+        ventanilla: ventanilla.numero,
+        turno: '000',
+        ultimosLlamados: []
+      });
+      res.json({ success: true, data: ventanilla });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   // POST /api/ventanillas - Crear
   async crear(req, res) {
     try {
@@ -151,6 +170,7 @@ class VentanillaController {
       res.status(500).json({ success: false, message: error.message });
     }
   }
+
 }
 
 export default new VentanillaController();

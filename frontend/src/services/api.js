@@ -38,9 +38,11 @@ export const ventanillasAPI = {
   // Actualizar anuncio
   actualizarAnuncio: (id, anuncio) => 
     api.patch(`/ventanillas/${id}/anuncio`, { anuncio }),
-  
+  // Reiniciar contador de ventanilla
+  reiniciarContador: (id) => api.post(`/ventanillas/${id}/reiniciar-contador`),
   // Limpiar ventanilla
   limpiar: (id) => api.delete(`/ventanillas/${id}/limpiar`)
+  
 };
 
 // Servicios de Cola

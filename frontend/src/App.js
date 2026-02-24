@@ -1,7 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+
 import PantallaPrincipal from './components/PantallaPrincipal/PantallaPrincipal';
 import PanelOperador from './components/PanelOperador/PanelOperador';
+import PanelAdmin from './components/PanelAdmin/PanelAdmin'; // 👈 ESTE FALTABA
 
 function App() {
   return (
@@ -13,15 +15,18 @@ function App() {
         
         {/* Panel Operador (Ventanilla) */}
         <Route path="/operador/:ventanillaId" element={<PanelOperador />} />
+
+        {/* Panel Admin */}
+        <Route path="/admin" element={<PanelAdmin />} />
         
-        {/* Página de selección de ventanilla (opcional) */}
+        {/* Página de selección de ventanilla */}
         <Route path="/seleccionar" element={<SeleccionarVentanilla />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
-// Componente auxiliar para seleccionar ventanilla (opcional)
+// Componente auxiliar para seleccionar ventanilla
 function SeleccionarVentanilla() {
   const [ventanillas, setVentanillas] = React.useState([]);
 
@@ -59,12 +64,15 @@ function SeleccionarVentanilla() {
                 >
                   {v.numero}
                 </div>
+
                 <h2 className="text-2xl font-bold text-gray-800">
                   Ventanilla {v.numero}
                 </h2>
+
                 <p className="text-gray-600 mt-2">
                   {v.operador || 'Sin operador'}
                 </p>
+
                 <div className="mt-4 bg-blue-100 rounded-lg p-3">
                   <p className="text-sm text-gray-600">Turno actual</p>
                   <p className="text-3xl font-black text-blue-900">
@@ -89,4 +97,4 @@ function SeleccionarVentanilla() {
   );
 }
 
-export default App; 
+export default App;
