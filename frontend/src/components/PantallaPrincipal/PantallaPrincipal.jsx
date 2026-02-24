@@ -9,12 +9,18 @@ const PantallaPrincipal = () => {
   const [ventanillas, setVentanillas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [iniciada, setIniciada] = useState(false);
-  const audioRef = useRef(new Audio('/sounds/llamada.mp3'));
 
   // ===== CARGA INICIAL =====
   useEffect(() => {
     cargarVentanillas();
   }, []);
+
+  // ===== REPRODUCIR SONIDO =====
+  // Crea una nueva instancia de Audio cada vez → permite superposición total
+  const reproducirSonido = () => {
+    const audio = new Audio('/sounds/llamada.mp3');
+    audio.play().catch(err => console.warn('Audio bloqueado:', err));
+  };
 
   // ===== SOCKETS =====
   useEffect(() => {
@@ -22,7 +28,13 @@ const PantallaPrincipal = () => {
     socketService.joinPantalla();
 
     socketService.onTurnoLlamado(() => {
-      audioRef.current.play().catch(err => console.warn('Audio bloqueado:', err));
+      reproducirSonido();
+      cargarVentanillas();
+    });
+
+    // Re-llamar también dispara sonido
+    socketService.onTurnoReLlamado(() => {
+      reproducirSonido();
       cargarVentanillas();
     });
 
@@ -38,6 +50,7 @@ const PantallaPrincipal = () => {
 
     return () => {
       socketService.off('turno:llamado');
+      socketService.off('turno:rellamado');
       socketService.off('anuncio:actualizado');
     };
   }, []);
@@ -54,9 +67,9 @@ const PantallaPrincipal = () => {
   };
 
   const iniciarPantalla = () => {
-    audioRef.current.play();
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
+    // Desbloquear contexto de audio en el primer gesto del usuario
+    const audio = new Audio('/sounds/llamada.mp3');
+    audio.play().then(() => audio.pause()).catch(() => {});
     setIniciada(true);
   };
 
