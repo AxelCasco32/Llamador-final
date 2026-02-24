@@ -1,7 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { ventanillasAPI } from '../../services/api';
+import { ventanillasAPI, colaAPI } from '../../services/api';
 import socketService from '../../services/socket';
 
 const COLORES = {
@@ -75,14 +75,15 @@ const PanelOperador = () => {
     }
   };
 
-  const handleReiniciarContador = async () => {
+  const handleResetearCola = async () => {
     try {
-      await ventanillasAPI.reiniciarContador(String(ventanillaId));
+      await colaAPI.resetear();
       setConfirmarReinicio(false);
       cargarDatos();
+      alert('Cola reseteada correctamente');
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al reiniciar contador');
+      alert('Error al resetear la cola');
     }
   };
 
@@ -121,7 +122,7 @@ const PanelOperador = () => {
               <button style={styles.btnCancelar} onClick={() => setConfirmarReinicio(false)}>
                 Cancelar
               </button>
-              <button style={styles.btnConfirmar} onClick={handleReiniciarContador}>
+              <button style={styles.btnConfirmar} onClick={handleResetearCola}>
                 Sí, reiniciar
               </button>
             </div>
@@ -178,6 +179,10 @@ const PanelOperador = () => {
               <span style={styles.btnIcono}>🔁</span>
               <span>Re-llamar</span>
             </button>
+            <button style={styles.btnReiniciar} onClick={() => setConfirmarReinicio(true)}>
+              <span style={styles.btnIcono}>🔄</span>
+              <span>Reiniciar Cola</span>
+            </button>
           </div>
         </div>
 
@@ -199,19 +204,6 @@ const PanelOperador = () => {
             </button>
           </div>
         </div>
-
-        {/* REINICIAR CONTADOR */}
-        <div style={{ ...styles.card, border: '1px solid rgba(229, 62, 62, 0.2)' }}>
-          <h2 style={{ ...styles.cardTitulo, color: '#c53030' }}>Zona de reinicio</h2>
-          <p style={styles.reinicioDescripcion}>
-            Reinicia el contador de turnos de esta ventanilla a cero.
-          </p>
-          <button style={styles.btnReiniciar} onClick={() => setConfirmarReinicio(true)}>
-            <span style={styles.btnIcono}>🔄</span>
-            <span>Reiniciar Contador</span>
-          </button>
-        </div>
-
       </div>
     </div>
   );
@@ -347,6 +339,23 @@ const styles = {
     boxShadow: '0 4px 16px rgba(26, 46, 59, 0.25)',
     letterSpacing: '0.5px',
   },
+  btnReiniciar: {
+    background: 'linear-gradient(135deg, #fc8181, #e53e3e)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '14px',
+    padding: '20px 16px',
+    fontSize: '16px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
+    boxShadow: '0 4px 16px rgba(229, 62, 62, 0.25)',
+    letterSpacing: '0.5px',
+    gridColumn: '1 / -1',
+  },
   btnIcono: {
     fontSize: '28px',
   },
@@ -385,30 +394,6 @@ const styles = {
     fontWeight: '700',
     cursor: 'pointer',
     letterSpacing: '0.5px',
-  },
-
-  // ---- REINICIAR ----
-  reinicioDescripcion: {
-    color: '#5A7A8A',
-    fontSize: '14px',
-    marginBottom: '16px',
-  },
-  btnReiniciar: {
-    background: 'linear-gradient(135deg, #fc8181, #e53e3e)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '14px',
-    padding: '16px 24px',
-    fontSize: '15px',
-    fontWeight: '700',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    boxShadow: '0 4px 16px rgba(229, 62, 62, 0.25)',
-    letterSpacing: '0.5px',
-    width: '100%',
-    justifyContent: 'center',
   },
 
   // ---- MODAL ----
