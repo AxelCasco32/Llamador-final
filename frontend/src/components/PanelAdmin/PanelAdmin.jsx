@@ -15,8 +15,14 @@ const PanelAdmin = () => {
   const [loading, setLoading] = useState(true);
   const [seccionActiva, setSeccionActiva] = useState('estadisticas');
   const [confirmarReset, setConfirmarReset] = useState(false);
+  const [confirmarEliminar, setConfirmarEliminar] = useState(null); // guarda la ventanilla a eliminar
   const [logoPreview, setLogoPreview] = useState('/images/logo.png');
   const [mensajeExito, setMensajeExito] = useState('');
+
+  // Estado formulario nueva ventanilla
+  const [formNueva, setFormNueva] = useState({ numero: '', color: 'verde', operador: '' });
+  const [errorForm, setErrorForm] = useState('');
+  const [creando, setCreando] = useState(false);
 
   useEffect(() => {
     cargarDatos();
@@ -42,20 +48,57 @@ const PanelAdmin = () => {
     setTimeout(() => setMensajeExito(''), 3000);
   };
 
+  // ===== CREAR VENTANILLA =====
+  const handleCrearVentanilla = async () => {
+    setErrorForm('');
+    if (!formNueva.numero) return setErrorForm('El número es obligatorio');
+    if (isNaN(formNueva.numero) || Number(formNueva.numero) <= 0) return setErrorForm('El número debe ser mayor a 0');
+    if (ventanillas.some(v => v.numero === Number(formNueva.numero))) return setErrorForm('Ya existe una ventanilla con ese número');
+
+    setCreando(true);
+    try {
+      await ventanillasAPI.crear({
+        numero: Number(formNueva.numero),
+        color: formNueva.color,
+        operador: formNueva.operador,
+        turnoActual: '000',
+        activa: true
+      });
+      setFormNueva({ numero: '', color: 'verde', operador: '' });
+      await cargarDatos();
+      mostrarExito(`Ventanilla ${formNueva.numero} creada correctamente`);
+    } catch (error) {
+      setErrorForm(error.response?.data?.message || 'Error al crear la ventanilla');
+    } finally {
+      setCreando(false);
+    }
+  };
+
+  // ===== ELIMINAR VENTANILLA =====
+  const handleEliminarVentanilla = async () => {
+    if (!confirmarEliminar) return;
+    try {
+      await ventanillasAPI.eliminar(confirmarEliminar._id);
+      setConfirmarEliminar(null);
+      await cargarDatos();
+      mostrarExito(`Ventanilla ${confirmarEliminar.numero} eliminada`);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  // ===== TOGGLE ACTIVA =====
   const handleToggleVentanilla = async (id, activaActual) => {
     try {
-      await ventanillasAPI.obtenerPorId(id); // verificar que existe
-      // Usamos limpiar + actualización manual ya que no hay endpoint toggle
-      // Lo ideal sería un PATCH /:id pero usamos lo disponible
-      setVentanillas(prev =>
-        prev.map(v => v._id === id ? { ...v, activa: !activaActual } : v)
-      );
+      await ventanillasAPI.toggleActiva(id);
+      await cargarDatos();
       mostrarExito(`Ventanilla ${activaActual ? 'desactivada' : 'activada'} correctamente`);
     } catch (error) {
       console.error('Error:', error);
     }
   };
 
+  // ===== RESETEAR COLA =====
   const handleResetearCola = async () => {
     try {
       await colaAPI.resetear();
@@ -105,12 +148,25 @@ const PanelAdmin = () => {
               Se reiniciarán todos los turnos y ventanillas del día. Esta acción no se puede deshacer.
             </p>
             <div style={styles.modalBotones}>
-              <button style={styles.btnCancelar} onClick={() => setConfirmarReset(false)}>
-                Cancelar
-              </button>
-              <button style={styles.btnConfirmar} onClick={handleResetearCola}>
-                Sí, resetear
-              </button>
+              <button style={styles.btnCancelar} onClick={() => setConfirmarReset(false)}>Cancelar</button>
+              <button style={styles.btnConfirmar} onClick={handleResetearCola}>Sí, resetear</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL ELIMINAR VENTANILLA ===== */}
+      {confirmarEliminar && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalCard}>
+            <div style={styles.modalIcono}>🗑️</div>
+            <h2 style={styles.modalTitulo}>¿Eliminar Ventanilla {confirmarEliminar.numero}?</h2>
+            <p style={styles.modalTexto}>
+              Se eliminará permanentemente la ventanilla {confirmarEliminar.numero}. Esta acción no se puede deshacer.
+            </p>
+            <div style={styles.modalBotones}>
+              <button style={styles.btnCancelar} onClick={() => setConfirmarEliminar(null)}>Cancelar</button>
+              <button style={styles.btnConfirmar} onClick={handleEliminarVentanilla}>Sí, eliminar</button>
             </div>
           </div>
         </div>
@@ -118,9 +174,7 @@ const PanelAdmin = () => {
 
       {/* ===== TOAST ÉXITO ===== */}
       {mensajeExito && (
-        <div style={styles.toast}>
-          ✅ {mensajeExito}
-        </div>
+        <div style={styles.toast}>✅ {mensajeExito}</div>
       )}
 
       <div style={styles.layout}>
@@ -142,10 +196,7 @@ const PanelAdmin = () => {
             ].map(item => (
               <button
                 key={item.id}
-                style={{
-                  ...styles.navBtn,
-                  ...(seccionActiva === item.id ? styles.navBtnActivo : {})
-                }}
+                style={{ ...styles.navBtn, ...(seccionActiva === item.id ? styles.navBtnActivo : {}) }}
                 onClick={() => setSeccionActiva(item.id)}
               >
                 <span style={styles.navIcono}>{item.icono}</span>
@@ -162,7 +213,6 @@ const PanelAdmin = () => {
           {seccionActiva === 'estadisticas' && (
             <div>
               <h1 style={styles.pageTitulo}>Estadísticas del día</h1>
-
               <div style={styles.statsGrid}>
                 <div style={{ ...styles.statCard, borderTop: '4px solid #00A8B5' }}>
                   <div style={styles.statNumero}>{turnosAtendidos}</div>
@@ -185,19 +235,12 @@ const PanelAdmin = () => {
               <div style={styles.card}>
                 <h2 style={styles.cardTitulo}>Turno actual por ventanilla</h2>
                 <div style={styles.ventanillasStatsGrid}>
-                  {ventanillas.filter(v => v.activa).map((v, idx) => (
+                  {ventanillas.filter(v => v.activa).map((v) => (
                     <div key={v._id} style={styles.ventanillaStatItem}>
-                      <div
-                        style={{
-                          ...styles.ventanillaStatHeader,
-                          background: `linear-gradient(135deg, ${COLORES[v.color] || COLORES.verde}, #1A2E3B)`
-                        }}
-                      >
+                      <div style={{ ...styles.ventanillaStatHeader, background: `linear-gradient(135deg, ${COLORES[v.color] || COLORES.verde}, #1A2E3B)` }}>
                         Ventanilla {v.numero}
                       </div>
-                      <div style={styles.ventanillaStatNumero}>
-                        {v.turnoActual || '000'}
-                      </div>
+                      <div style={styles.ventanillaStatNumero}>{v.turnoActual || '000'}</div>
                       <div style={styles.ventanillaStatUltimos}>
                         {v.ultimosLlamados?.slice(0, 3).map((t, i) => (
                           <span key={i} style={styles.ultimoBadge}>{t}</span>
@@ -214,43 +257,98 @@ const PanelAdmin = () => {
           {seccionActiva === 'ventanillas' && (
             <div>
               <h1 style={styles.pageTitulo}>Gestión de Ventanillas</h1>
+
+              {/* FORMULARIO CREAR */}
               <div style={styles.card}>
-                <h2 style={styles.cardTitulo}>Ventanillas registradas</h2>
+                <h2 style={styles.cardTitulo}>➕ Nueva Ventanilla</h2>
+                <div style={styles.formGrid}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Número</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formNueva.numero}
+                      onChange={e => setFormNueva(prev => ({ ...prev, numero: e.target.value }))}
+                      placeholder="Ej: 4"
+                      style={styles.formInput}
+                    />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Color</label>
+                    <select
+                      value={formNueva.color}
+                      onChange={e => setFormNueva(prev => ({ ...prev, color: e.target.value }))}
+                      style={styles.formInput}
+                    >
+                      <option value="verde">Verde</option>
+                      <option value="azul">Azul</option>
+                      <option value="rojo">Rojo</option>
+                      <option value="negro">Negro</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.formLabel}>Operador</label>
+                    <input
+                      type="text"
+                      value={formNueva.operador}
+                      onChange={e => setFormNueva(prev => ({ ...prev, operador: e.target.value }))}
+                      placeholder="Nombre del operador"
+                      style={styles.formInput}
+                    />
+                  </div>
+                </div>
+
+                {/* Preview color */}
+                <div style={styles.colorPreview}>
+                  <div style={{ ...styles.colorDot, background: COLORES[formNueva.color] }} />
+                  <span style={styles.colorLabel}>Vista previa: Ventanilla {formNueva.numero || '?'}</span>
+                </div>
+
+                {errorForm && <p style={styles.errorMsg}>⚠️ {errorForm}</p>}
+
+                <button
+                  style={{ ...styles.btnCrear, opacity: creando ? 0.7 : 1 }}
+                  onClick={handleCrearVentanilla}
+                  disabled={creando}
+                >
+                  {creando ? 'Creando...' : '➕ Crear Ventanilla'}
+                </button>
+              </div>
+
+              {/* LISTA VENTANILLAS */}
+              <div style={styles.card}>
+                <h2 style={styles.cardTitulo}>Ventanillas registradas ({ventanillas.length})</h2>
                 <div style={styles.ventanillasList}>
                   {ventanillas.map((v) => (
                     <div key={v._id} style={styles.ventanillaRow}>
-                      <div
-                        style={{
-                          ...styles.ventanillaBadge,
-                          background: COLORES[v.color] || COLORES.verde
-                        }}
-                      >
+                      <div style={{ ...styles.ventanillaBadge, background: COLORES[v.color] || COLORES.verde }}>
                         {v.numero}
                       </div>
                       <div style={styles.ventanillaInfo}>
                         <div style={styles.ventanillaNombre}>Ventanilla {v.numero}</div>
                         <div style={styles.ventanillaDetalle}>
-                          Color: {v.color} · Turno actual: {v.turnoActual || '000'}
+                          Color: {v.color} · Turno actual: {v.turnoActual || '000'} {v.operador ? `· ${v.operador}` : ''}
                         </div>
                       </div>
                       <div style={styles.ventanillaAcciones}>
+                        {/* Toggle activa */}
                         <div
-                          style={{
-                            ...styles.toggleSwitch,
-                            background: v.activa ? '#00A8B5' : '#C8DDE0'
-                          }}
+                          style={{ ...styles.toggleSwitch, background: v.activa ? '#00A8B5' : '#C8DDE0' }}
                           onClick={() => handleToggleVentanilla(v._id, v.activa)}
                         >
-                          <div
-                            style={{
-                              ...styles.toggleThumb,
-                              transform: v.activa ? 'translateX(24px)' : 'translateX(2px)'
-                            }}
-                          />
+                          <div style={{ ...styles.toggleThumb, transform: v.activa ? 'translateX(24px)' : 'translateX(2px)' }} />
                         </div>
                         <span style={{ ...styles.toggleLabel, color: v.activa ? '#00A8B5' : '#A8D8DC' }}>
                           {v.activa ? 'Activa' : 'Inactiva'}
                         </span>
+                        {/* Botón eliminar */}
+                        <button
+                          style={styles.btnEliminar}
+                          onClick={() => setConfirmarEliminar(v)}
+                          title="Eliminar ventanilla"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -274,12 +372,7 @@ const PanelAdmin = () => {
                 </p>
                 <label style={styles.btnSubirLogo}>
                   🖼️ Seleccionar nuevo logo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={handleCambiarLogo}
-                  />
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCambiarLogo} />
                 </label>
               </div>
             </div>
@@ -391,15 +484,12 @@ const styles = {
     fontSize: '14px',
     fontWeight: '600',
     textAlign: 'left',
-    transition: 'all 0.2s',
   },
   navBtnActivo: {
     background: 'rgba(255,255,255,0.15)',
     color: 'white',
   },
-  navIcono: {
-    fontSize: '18px',
-  },
+  navIcono: { fontSize: '18px' },
 
   // ---- MAIN ----
   main: {
@@ -430,6 +520,70 @@ const styles = {
     marginBottom: '20px',
     paddingBottom: '12px',
     borderBottom: '2px solid #E8F7F8',
+  },
+
+  // ---- FORMULARIO ----
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '16px',
+    marginBottom: '16px',
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  formLabel: {
+    color: '#5A7A8A',
+    fontSize: '12px',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+  },
+  formInput: {
+    border: '2px solid #E8F7F8',
+    borderRadius: '10px',
+    padding: '10px 14px',
+    fontSize: '15px',
+    color: '#1A2E3B',
+    outline: 'none',
+    background: '#FAFEFE',
+    fontFamily: 'inherit',
+  },
+  colorPreview: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '16px',
+  },
+  colorDot: {
+    width: '24px',
+    height: '24px',
+    borderRadius: '50%',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+  },
+  colorLabel: {
+    color: '#5A7A8A',
+    fontSize: '13px',
+    fontWeight: '600',
+  },
+  errorMsg: {
+    color: '#e53e3e',
+    fontSize: '13px',
+    marginBottom: '12px',
+    fontWeight: '600',
+  },
+  btnCrear: {
+    background: 'linear-gradient(135deg, #00A8B5, #005F6B)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    padding: '12px 28px',
+    fontSize: '15px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0, 95, 107, 0.2)',
   },
 
   // ---- STATS ----
@@ -528,9 +682,7 @@ const styles = {
     fontWeight: '900',
     flexShrink: 0,
   },
-  ventanillaInfo: {
-    flex: 1,
-  },
+  ventanillaInfo: { flex: 1 },
   ventanillaNombre: {
     color: '#1A2E3B',
     fontSize: '16px',
@@ -569,6 +721,15 @@ const styles = {
     fontSize: '13px',
     fontWeight: '700',
     minWidth: '52px',
+  },
+  btnEliminar: {
+    background: 'linear-gradient(135deg, #fc8181, #e53e3e)',
+    border: 'none',
+    borderRadius: '10px',
+    padding: '8px 12px',
+    fontSize: '16px',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(229, 62, 62, 0.2)',
   },
 
   // ---- LOGO ----
@@ -664,10 +825,8 @@ const styles = {
   // ---- MODAL ----
   modalOverlay: {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100vw',
-    height: '100vh',
+    top: 0, left: 0,
+    width: '100vw', height: '100vh',
     background: 'rgba(0,0,0,0.5)',
     display: 'flex',
     alignItems: 'center',
@@ -684,10 +843,7 @@ const styles = {
     textAlign: 'center',
     boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
   },
-  modalIcono: {
-    fontSize: '52px',
-    marginBottom: '16px',
-  },
+  modalIcono: { fontSize: '52px', marginBottom: '16px' },
   modalTitulo: {
     color: '#1A2E3B',
     fontSize: '22px',

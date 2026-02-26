@@ -46,6 +46,15 @@ export const ventanillasAPI = {
 
   // Reiniciar contador de ventanilla
   reiniciarContador: (id) => api.post(`/ventanillas/${id}/reiniciar-contador`),
+
+  // Crear ventanilla
+  crear: (datos) => api.post('/ventanillas', datos),
+
+  // Eliminar ventanilla
+  eliminar: (id) => api.delete(`/ventanillas/${id}`),
+
+  // Activar / Desactivar ventanilla
+  toggleActiva: (id) => api.patch(`/ventanillas/${id}/toggle`),
 };
 
 // Servicios de Cola
