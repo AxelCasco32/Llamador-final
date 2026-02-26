@@ -15,7 +15,9 @@ router.get('/:id', VentanillaController.obtenerPorId);
 router.post('/:id/llamar-siguiente', VentanillaController.llamarSiguiente);
 router.post('/:id/rellamar', VentanillaController.reLlamar);
 router.patch('/:id/anuncio', VentanillaController.actualizarAnuncio);
+router.patch('/:id/toggle', VentanillaController.toggleActiva);
 router.delete('/:id/limpiar', VentanillaController.limpiar);
+router.delete('/:id', VentanillaController.eliminar);
 router.post('/:id/reiniciar-contador', VentanillaController.reiniciarContador);
 
 export default router;

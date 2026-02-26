@@ -171,6 +171,31 @@ class VentanillaController {
     }
   }
 
+  // DELETE /api/ventanillas/:id - Eliminar
+  async eliminar(req, res) {
+    try {
+      const ventanilla = await Ventanilla.findByIdAndDelete(req.params.id);
+      if (!ventanilla) return res.status(404).json({ success: false, message: 'No encontrada' });
+      req.io.emit('ventanilla:eliminada', { id: req.params.id, numero: ventanilla.numero });
+      res.json({ success: true, message: `Ventanilla ${ventanilla.numero} eliminada` });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  // PATCH /api/ventanillas/:id/toggle - Activar/Desactivar
+  async toggleActiva(req, res) {
+    try {
+      const ventanilla = await Ventanilla.findById(req.params.id);
+      if (!ventanilla) return res.status(404).json({ success: false, message: 'No encontrada' });
+      ventanilla.activa = !ventanilla.activa;
+      await ventanilla.save();
+      res.json({ success: true, data: ventanilla });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
 }
 
 export default new VentanillaController();
