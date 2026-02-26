@@ -475,6 +475,7 @@ const styles = {
     fontSize: '24px',
     fontWeight: '600',
     letterSpacing: '2px',
+  
   },
 };
 
